@@ -18,12 +18,12 @@ These rules apply to every change, whether human- or agent-authored. They match
 the ownership evidence the AI-slop review evaluates (see
 [`pr-ai-slop-review.md`](.github/workflows/pr-ai-slop-review.md)).
 
-1. **Issue first.** Non-trivial changes require a pre-existing issue describing
-   the problem. If none exists, ask the maintainers to open or approve one
-   before implementing.
-2. **Scope discipline.** Every changed file must be justifiable from the linked
-   issue. No drive-by refactors, renames, formatting churn, or dependency bumps
-   unrelated to the problem being fixed.
+1. **Direct fork development.** This fork accepts non-trivial product changes
+   directly on `dev`. An issue is optional unless the change needs discussion
+   or tracking beyond the implementation itself.
+2. **Scope discipline.** Every changed file must be justifiable from the stated
+   task or a linked issue. No drive-by refactors, renames, formatting churn, or
+   dependency bumps unrelated to the problem being fixed.
 3. **Author accountability.** AI assistance is welcome, but the contributor owns
    the result: understand the change, describe the problem and approach in your
    own words, and verify the change against the reported behavior before
