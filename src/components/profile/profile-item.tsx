@@ -4,6 +4,7 @@ import {
   CheckBoxRounded,
   DragIndicatorRounded,
   RefreshRounded,
+  RuleRounded,
 } from '@mui/icons-material'
 import {
   Box,
@@ -737,6 +738,26 @@ const ProfileItemBase = (props: ProfileItemProps) => {
               }}
             >
               <RefreshRounded color="inherit" />
+            </IconButton>
+          )}
+          {option?.rules && (
+            <IconButton
+              title={t('profiles.components.menu.editRules')}
+              sx={{
+                position: 'absolute',
+                p: '3px',
+                top: -1,
+                right: hasUrl ? 24 : -5,
+              }}
+              size="small"
+              color="inherit"
+              disabled={activating}
+              onClick={(event) => {
+                event.stopPropagation()
+                setRulesOpen(true)
+              }}
+            >
+              <RuleRounded color="inherit" />
             </IconButton>
           )}
         </Box>

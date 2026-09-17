@@ -233,6 +233,9 @@ const RULE_TYPE_LABEL_KEYS: Record<string, string> = Object.fromEntries(
   ]),
 )
 
+const DEFAULT_RULE_TYPE =
+  rules.find((rule) => rule.name === 'DOMAIN-SUFFIX') ?? rules[0]
+
 const builtinProxyPolicies = ['DIRECT', 'REJECT', 'REJECT-DROP', 'PASS']
 
 const PROXY_POLICY_LABEL_KEYS: Record<string, TranslationKey> =
@@ -268,7 +271,8 @@ export const RulesEditorViewer = (props: Props) => {
   const [visualization, setVisualization] = useState(true)
   const [match, setMatch] = useState(() => (_: string) => true)
 
-  const [ruleType, setRuleType] = useState<(typeof rules)[number]>(rules[0])
+  const [ruleType, setRuleType] =
+    useState<(typeof rules)[number]>(DEFAULT_RULE_TYPE)
   const [ruleContent, setRuleContent] = useState('')
   const [noResolve, setNoResolve] = useState(false)
   const [proxyPolicy, setProxyPolicy] = useState(builtinProxyPolicies[0])

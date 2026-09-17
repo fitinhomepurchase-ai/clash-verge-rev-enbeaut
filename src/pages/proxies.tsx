@@ -5,6 +5,7 @@ import { useCallback, useEffect, useReducer, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { BasePage, TooltipIcon } from '@/components/base'
+import { ProfileSwitcher } from '@/components/profile/profile-switcher'
 import { ProviderButton } from '@/components/proxy/provider-button'
 import { ProxyGroups } from '@/components/proxy/proxy-groups'
 import {
@@ -44,7 +45,7 @@ const ProxyPage = () => {
   )
 
   const { clashConfig } = useClashConfigData()
-  const { refreshClashConfig } = useAppRefreshers()
+  const { refreshAll, refreshClashConfig } = useAppRefreshers()
 
   const updateChainConfigData = useCallback((value: string | null) => {
     dispatchChainConfigData(value)
@@ -154,6 +155,8 @@ const ProxyPage = () => {
       }
       header={
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ProfileSwitcher onSwitched={refreshAll} />
+
           <ProviderButton />
 
           <ButtonGroup size="small">
