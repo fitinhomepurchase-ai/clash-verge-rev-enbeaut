@@ -4,7 +4,9 @@
       "updateAll": "Update All Profiles",
       "viewRuntimeConfig": "View Runtime Config",
       "reactivate": "Reactivate Profiles",
-      "import": "Import"
+      "import": "Import",
+      "addSubscription": "Add Subscription",
+      "importLocal": "Import YAML"
     },
     "batch": {
       "actions": {
@@ -111,6 +113,8 @@
     "profileForm": {
       "title": {
         "create": "Create Profile",
+        "addSubscription": "Add Subscription",
+        "importLocal": "Import Local YAML",
         "edit": "Edit Profile"
       },
       "fields": {
@@ -133,6 +137,7 @@
         "typeRequired": "Select a profile type",
         "urlRequired": "Enter a subscription URL",
         "uidMissing": "The profile identifier is missing",
+        "fileRequired": "Choose a YAML file to import",
         "saveFailed": "Failed to save profile"
       },
       "warnings": {
@@ -141,8 +146,14 @@
       "feedback": {
         "notifications": {
           "creationRetry": "Profile creation failed, retrying with Clash proxy...",
-          "creationSuccess": "Profile creation succeeded with Clash proxy"
+          "creationSuccess": "Profile creation succeeded with Clash proxy",
+          "profileAdded": "Subscription added as a separate profile"
         }
+      },
+      "actions": {
+        "paste": "Paste",
+        "showAdvanced": "More settings",
+        "hideAdvanced": "Hide settings"
       }
     },
     "proxiesEditor": {

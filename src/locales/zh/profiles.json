@@ -4,7 +4,9 @@
       "updateAll": "更新所有订阅",
       "viewRuntimeConfig": "查看运行时订阅",
       "reactivate": "重新激活订阅",
-      "import": "导入"
+      "import": "导入",
+      "addSubscription": "添加订阅",
+      "importLocal": "导入 YAML"
     },
     "batch": {
       "actions": {
@@ -111,6 +113,8 @@
     "profileForm": {
       "title": {
         "create": "新建配置",
+        "addSubscription": "添加订阅",
+        "importLocal": "导入本地 YAML",
         "edit": "编辑配置"
       },
       "fields": {
@@ -133,6 +137,7 @@
         "typeRequired": "请选择订阅类型",
         "urlRequired": "请输入订阅链接",
         "uidMissing": "缺少订阅标识",
+        "fileRequired": "请选择要导入的 YAML 文件",
         "saveFailed": "保存订阅失败"
       },
       "warnings": {
@@ -141,8 +146,14 @@
       "feedback": {
         "notifications": {
           "creationRetry": "订阅创建失败，尝试使用 Clash 代理创建",
-          "creationSuccess": "使用 Clash 代理创建订阅成功"
+          "creationSuccess": "使用 Clash 代理创建订阅成功",
+          "profileAdded": "订阅已作为独立配置加入"
         }
+      },
+      "actions": {
+        "paste": "粘贴",
+        "showAdvanced": "更多设置",
+        "hideAdvanced": "收起设置"
       }
     },
     "proxiesEditor": {

@@ -6,19 +6,18 @@ import {
 } from '@dnd-kit/react'
 import { isSortable } from '@dnd-kit/react/sortable'
 import {
+  AddRounded,
   CheckBoxOutlineBlankRounded,
   CheckBoxRounded,
   ClearRounded,
-  ContentPasteRounded,
   DeleteRounded,
   IndeterminateCheckBoxRounded,
   LocalFireDepartmentRounded,
   RefreshRounded,
   TextSnippetOutlined,
 } from '@mui/icons-material'
-import { Box, Button, Divider, Grid, IconButton, Stack } from '@mui/material'
+import { Box, Button, Divider, Grid, IconButton } from '@mui/material'
 import { TauriEvent } from '@tauri-apps/api/event'
-import { readText } from '@tauri-apps/plugin-clipboard-manager'
 import { readTextFile } from '@tauri-apps/plugin-fs'
 import { useLockFn } from 'ahooks'
 import { throttle } from 'lodash-es'
@@ -27,11 +26,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { closeAllConnections } from 'tauri-plugin-mihomo-api'
 
-import {
-  BasePage,
-  BaseStyledTextField,
-  type DialogRef,
-} from '@/components/base'
+import { BasePage, type DialogRef } from '@/components/base'
 import { ProfileItem } from '@/components/profile/profile-item'
 import { ProfileMore } from '@/components/profile/profile-more'
 import {
@@ -40,13 +35,12 @@ import {
 } from '@/components/profile/profile-viewer'
 import { ConfigViewer } from '@/components/setting/mods/config-viewer'
 import { useListen } from '@/hooks/use-listen'
-import { fetchProfilesIntoCache, useProfiles } from '@/hooks/use-profiles'
+import { useProfiles } from '@/hooks/use-profiles'
 import {
   createProfile,
   deleteProfile,
   enhanceProfiles,
   getRuntimeLogs,
-  importProfile,
   reorderProfile,
   updateProfile,
 } from '@/services/cmds'
@@ -82,15 +76,12 @@ const ProfilePage = () => {
   const { t } = useTranslation()
   const location = useLocation()
   const { addListener } = useListen()
-  const [url, setUrl] = useState('')
-  const [disabled, setDisabled] = useState(false)
   const [profileDndRevision, setProfileDndRevision] = useState(0)
   const [activatings, setActivatings] = useState<string[]>([])
   const [switchTarget, setSwitchTarget] = useState<string | null>(null)
   const [visibleSwitchingProfile, setVisibleSwitchingProfile] = useState<
     string | null
   >(null)
-  const [loading, setLoading] = useState(false)
   const [timerUpdateRevisions, setTimerUpdateRevisions] = useState<
     Map<string, number>
   >(() => new Map())
@@ -210,96 +201,6 @@ const ProfilePage = () => {
 
   const currentActivatings = () => {
     return [...new Set([profiles.current ?? ''])].filter(Boolean)
-  }
-
-  const onImport = async () => {
-    if (!url) return
-    if (!/^https?:\/\//i.test(url)) {
-      showNotice.error('profiles.page.feedback.errors.invalidUrl')
-      return
-    }
-    setLoading(true)
-
-    const handleImportSuccess = async (noticeKey: string) => {
-      showNotice.success(noticeKey)
-      setUrl('')
-      await performRobustRefresh()
-    }
-    try {
-      await importProfile(url)
-      await handleImportSuccess('shared.feedback.notifications.importSuccess')
-    } catch (initialErr) {
-      console.warn('[订阅导入] 首次导入失败:', initialErr)
-
-      const initialDetail = errorDetail(initialErr)
-      if (initialDetail.toLowerCase().includes('legacy tls')) {
-        showNotice.error(initialErr)
-        return
-      }
-
-      showNotice.info('profiles.page.feedback.notifications.importRetry')
-      try {
-        await importProfile(url, {
-          with_proxy: false,
-          self_proxy: true,
-        })
-        await handleImportSuccess(
-          'shared.feedback.notifications.importWithClashProxy',
-        )
-      } catch (retryErr) {
-        showNotice.error(
-          'profiles.page.feedback.notifications.importFail',
-          retryErr,
-        )
-      }
-    } finally {
-      setDisabled(false)
-      setLoading(false)
-    }
-  }
-
-  // `useProfiles` already retries three times; add only one business-level retry.
-  const performRobustRefresh = async () => {
-    let retryCount = 0
-    const maxRetries = 1
-    const baseDelay = 200
-
-    while (retryCount < maxRetries) {
-      try {
-        debugLog(`[导入刷新] 第${retryCount + 1}次尝试刷新配置数据`)
-
-        await mutateProfiles()
-
-        await new Promise((resolve) =>
-          setTimeout(resolve, baseDelay * (retryCount + 1)),
-        )
-
-        await onEnhance(false)
-        return
-      } catch (error) {
-        console.error(`[导入刷新] 第${retryCount + 1}次刷新失败:`, error)
-        retryCount++
-        await new Promise((resolve) =>
-          setTimeout(resolve, baseDelay * retryCount),
-        )
-      }
-    }
-
-    console.warn(`[导入刷新] 常规刷新失败，尝试清除缓存重新获取`)
-    try {
-      await fetchProfilesIntoCache()
-      await onEnhance(false)
-      showNotice.error(
-        'profiles.page.feedback.notifications.importNeedsRefresh',
-        3000,
-      )
-    } catch (finalError) {
-      console.error(`[导入刷新] 最终刷新尝试失败:`, finalError)
-      showNotice.error(
-        'profiles.page.feedback.notifications.importSuccess',
-        5000,
-      )
-    }
   }
 
   const onDragEnd = async (event: DragEndEvent) => {
@@ -603,11 +504,6 @@ const ProfilePage = () => {
     await runProfileUpdates(target)
   })
 
-  const onCopyLink = async () => {
-    const text = await readText()
-    if (text) setUrl(text)
-  }
-
   const toggleBatchMode = () => {
     setBatchMode(!batchMode)
     if (!batchMode) {
@@ -817,77 +713,35 @@ const ProfilePage = () => {
         </Box>
       }
     >
-      <Stack
-        direction="row"
-        spacing={1}
+      <Box
         sx={{
           pt: 1,
           mb: 0.5,
           mx: '10px',
           height: '36px',
           display: 'flex',
+          gap: 1,
           alignItems: 'center',
         }}
       >
-        <BaseStyledTextField
-          value={url}
+        <Button
+          variant="contained"
+          size="small"
+          startIcon={<AddRounded />}
+          sx={{ borderRadius: '6px' }}
+          onClick={() => viewerRef.current?.create('remote')}
+        >
+          {t('profiles.page.actions.addSubscription')}
+        </Button>
+        <Button
           variant="outlined"
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter' || event.nativeEvent.isComposing) {
-              return
-            }
-            if (!url || disabled || loading) {
-              return
-            }
-            event.preventDefault()
-            void onImport()
-          }}
-          placeholder={t('profiles.page.importForm.placeholder')}
-          slotProps={{
-            input: {
-              sx: { pr: 1 },
-              endAdornment: !url ? (
-                <IconButton
-                  size="small"
-                  sx={{ p: 0.5 }}
-                  title={t('profiles.page.importForm.actions.paste')}
-                  onClick={onCopyLink}
-                >
-                  <ContentPasteRounded fontSize="inherit" />
-                </IconButton>
-              ) : (
-                <IconButton
-                  size="small"
-                  sx={{ p: 0.5 }}
-                  title={t('shared.actions.clear')}
-                  onClick={() => setUrl('')}
-                >
-                  <ClearRounded fontSize="inherit" />
-                </IconButton>
-              ),
-            },
-          }}
-        />
-        <Button
-          disabled={!url || disabled}
-          loading={loading}
-          variant="contained"
           size="small"
           sx={{ borderRadius: '6px' }}
-          onClick={onImport}
+          onClick={() => viewerRef.current?.create('local')}
         >
-          {t('profiles.page.actions.import')}
+          {t('profiles.page.actions.importLocal')}
         </Button>
-        <Button
-          variant="contained"
-          size="small"
-          sx={{ borderRadius: '6px' }}
-          onClick={() => viewerRef.current?.create()}
-        >
-          {t('shared.actions.new')}
-        </Button>
-      </Stack>
+      </Box>
 
       <Box
         sx={{

@@ -1,13 +1,22 @@
 import {
+  ContentPasteRounded,
+  ExpandLessRounded,
+  ExpandMoreRounded,
+} from '@mui/icons-material'
+import {
   Box,
+  Button,
+  Collapse,
   FormControl,
   InputAdornment,
   InputLabel,
+  IconButton,
   MenuItem,
   Select,
   styled,
   TextField,
 } from '@mui/material'
+import { readText } from '@tauri-apps/plugin-clipboard-manager'
 import { useLockFn } from 'ahooks'
 import type { Ref } from 'react'
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
@@ -27,7 +36,7 @@ interface Props {
 }
 
 export interface ProfileViewerRef {
-  create: () => void
+  create: (type?: 'remote' | 'local') => void
   edit: (item: IProfileItem) => void
 }
 
@@ -41,11 +50,12 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
   const [open, setOpen] = useState(false)
   const [openType, setOpenType] = useState<'new' | 'edit'>('new')
   const [loading, setLoading] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const { profiles } = useProfiles()
 
   const fileDataRef = useRef<string | null>(null)
 
-  const { control, watch, setValue, reset, handleSubmit, getValues } =
+  const { control, watch, setValue, reset, handleSubmit } =
     useForm<IProfileItem>({
       defaultValues: {
         type: 'remote',
@@ -61,16 +71,29 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
     })
 
   useImperativeHandle(ref, () => ({
-    create: () => {
+    create: (type = 'remote') => {
+      reset({
+        type,
+        name: '',
+        desc: '',
+        url: '',
+        option: {
+          with_proxy: false,
+          self_proxy: false,
+          allow_auto_update: true,
+        },
+      })
+      fileDataRef.current = null
+      setShowAdvanced(false)
       setOpenType('new')
       setOpen(true)
     },
     edit: (item: IProfileItem) => {
       if (item) {
-        Object.entries(item).forEach(([key, value]) => {
-          setValue(key as any, value)
-        })
+        reset(item)
       }
+      fileDataRef.current = null
+      setShowAdvanced(true)
       setOpenType('edit')
       setOpen(true)
     },
@@ -97,6 +120,13 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
         if (form.type === 'remote' && !form.url) {
           throw new Error(t('profiles.modals.profileForm.errors.urlRequired'))
         }
+        if (
+          form.type === 'local' &&
+          openType === 'new' &&
+          !fileDataRef.current
+        ) {
+          throw new Error(t('profiles.modals.profileForm.errors.fileRequired'))
+        }
 
         const option = form.option ? { ...form.option } : undefined
         if (option?.timeout_seconds) {
@@ -113,8 +143,12 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
           option.user_agent = undefined
         }
 
-        const name = form.name || `${form.type} file`
-        const item = { ...form, name, option }
+        const item = {
+          ...form,
+          name: form.name || undefined,
+          desc: form.desc || undefined,
+          option,
+        }
         const isRemote = form.type === 'remote'
         const isUpdate = openType === 'edit'
 
@@ -182,6 +216,12 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
           }
         }
 
+        if (!isUpdate) {
+          showNotice.success(
+            'profiles.modals.profileForm.feedback.notifications.profileAdded',
+          )
+        }
+
         setOpen(false)
         setTimeout(() => reset(), 500)
         fileDataRef.current = null
@@ -225,7 +265,9 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
       open={open}
       title={
         openType === 'new'
-          ? t('profiles.modals.profileForm.title.create')
+          ? formType === 'local'
+            ? t('profiles.modals.profileForm.title.importLocal')
+            : t('profiles.modals.profileForm.title.addSubscription')
           : t('profiles.modals.profileForm.title.edit')
       }
       contentSx={{ width: 375, pb: 0, maxHeight: '80%' }}
@@ -236,54 +278,57 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
       onOk={handleOk}
       loading={loading}
     >
-      <Controller
-        name="type"
-        control={control}
-        render={({ field }) => (
-          <FormControl size="small" fullWidth sx={{ mt: 1, mb: 1 }}>
-            <InputLabel>
-              {t('profiles.modals.profileForm.fields.type')}
-            </InputLabel>
-            <Select
-              {...field}
-              autoFocus
-              label={t('profiles.modals.profileForm.fields.type')}
-            >
-              <MenuItem value="remote">
-                {t('profiles.modals.profileForm.types.remote')}
-              </MenuItem>
-              <MenuItem value="local">
-                {t('profiles.modals.profileForm.types.local')}
-              </MenuItem>
-            </Select>
-          </FormControl>
-        )}
-      />
-
-      <Controller
-        name="name"
-        control={control}
-        render={({ field }) => (
-          <TextField {...text} {...field} label={t('shared.labels.name')} />
-        )}
-      />
-
-      <Controller
-        name="desc"
-        control={control}
-        render={({ field }) => (
-          <TextField
-            {...text}
-            {...field}
-            label={t('profiles.modals.profileForm.fields.description')}
+      {openType === 'edit' && (
+        <>
+          <Controller
+            name="type"
+            control={control}
+            render={({ field }) => (
+              <FormControl size="small" fullWidth sx={{ mt: 1, mb: 1 }}>
+                <InputLabel>
+                  {t('profiles.modals.profileForm.fields.type')}
+                </InputLabel>
+                <Select
+                  {...field}
+                  label={t('profiles.modals.profileForm.fields.type')}
+                >
+                  <MenuItem value="remote">
+                    {t('profiles.modals.profileForm.types.remote')}
+                  </MenuItem>
+                  <MenuItem value="local">
+                    {t('profiles.modals.profileForm.types.local')}
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            )}
           />
-        )}
-      />
+
+          <Controller
+            name="name"
+            control={control}
+            render={({ field }) => (
+              <TextField {...text} {...field} label={t('shared.labels.name')} />
+            )}
+          />
+
+          <Controller
+            name="desc"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...text}
+                {...field}
+                label={t('profiles.modals.profileForm.fields.description')}
+              />
+            )}
+          />
+        </>
+      )}
 
       {isLocal && openType === 'new' && (
         <FileInput
           onChange={(file, val) => {
-            setValue('name', getValues('name') || file.name)
+            setValue('name', file.name)
             fileDataRef.current = val
           }}
         />
@@ -299,39 +344,22 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
                 {...text}
                 {...field}
                 multiline
+                autoFocus={openType === 'new'}
                 label={t('profiles.modals.profileForm.fields.subscriptionUrl')}
-              />
-            )}
-          />
-
-          <Controller
-            name="option.user_agent"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...text}
-                {...field}
-                placeholder={`clash-verge/v${version}`}
-                label={t('profiles.modals.profileForm.fields.userAgent')}
-              />
-            )}
-          />
-
-          <Controller
-            name="option.timeout_seconds"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...text}
-                {...field}
-                type="number"
-                placeholder="60"
-                label={t('profiles.modals.profileForm.fields.httpTimeout')}
                 slotProps={{
                   input: {
                     endAdornment: (
                       <InputAdornment position="end">
-                        {t('shared.units.seconds')}
+                        <IconButton
+                          size="small"
+                          title={t('profiles.modals.profileForm.actions.paste')}
+                          onClick={async () => {
+                            const url = await readText()
+                            if (url) setValue('url', url)
+                          }}
+                        >
+                          <ContentPasteRounded fontSize="inherit" />
+                        </IconButton>
                       </InputAdornment>
                     ),
                   },
@@ -339,99 +367,185 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
               />
             )}
           />
-          <Controller
-            name="option.update_interval"
-            control={control}
-            render={({ field }) => {
-              const interval = Number(field.value)
-              const tooFrequent =
-                Number.isFinite(interval) &&
-                interval > 0 &&
-                interval < MIN_UPDATE_INTERVAL
 
-              return (
+          {openType === 'new' && (
+            <Button
+              size="small"
+              color="inherit"
+              endIcon={
+                showAdvanced ? <ExpandLessRounded /> : <ExpandMoreRounded />
+              }
+              onClick={() => setShowAdvanced((value) => !value)}
+              sx={{ mt: 0.5, px: 0 }}
+            >
+              {showAdvanced
+                ? t('profiles.modals.profileForm.actions.hideAdvanced')
+                : t('profiles.modals.profileForm.actions.showAdvanced')}
+            </Button>
+          )}
+
+          <Collapse in={openType === 'edit' || showAdvanced}>
+            {openType === 'new' && (
+              <>
+                <Controller
+                  name="name"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...text}
+                      {...field}
+                      label={t('shared.labels.name')}
+                    />
+                  )}
+                />
+
+                <Controller
+                  name="desc"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...text}
+                      {...field}
+                      label={t(
+                        'profiles.modals.profileForm.fields.description',
+                      )}
+                    />
+                  )}
+                />
+              </>
+            )}
+
+            <Controller
+              name="option.user_agent"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...text}
+                  {...field}
+                  placeholder={`clash-verge/v${version}`}
+                  label={t('profiles.modals.profileForm.fields.userAgent')}
+                />
+              )}
+            />
+
+            <Controller
+              name="option.timeout_seconds"
+              control={control}
+              render={({ field }) => (
                 <TextField
                   {...text}
                   {...field}
                   type="number"
-                  label={t('profiles.modals.profileForm.fields.updateInterval')}
-                  helperText={
-                    tooFrequent
-                      ? t(
-                          'profiles.modals.profileForm.warnings.frequentUpdate',
-                          { minutes: MIN_UPDATE_INTERVAL },
-                        )
-                      : undefined
-                  }
+                  placeholder="60"
+                  label={t('profiles.modals.profileForm.fields.httpTimeout')}
                   slotProps={{
-                    formHelperText: { sx: { color: 'warning.main' } },
                     input: {
                       endAdornment: (
                         <InputAdornment position="end">
-                          {t('shared.units.minutes')}
+                          {t('shared.units.seconds')}
                         </InputAdornment>
                       ),
                     },
                   }}
                 />
-              )
-            }}
-          />
-          <Controller
-            name="option.with_proxy"
-            control={control}
-            render={({ field }) => (
-              <StyledBox>
-                <InputLabel>
-                  {t('profiles.modals.profileForm.fields.useSystemProxy')}
-                </InputLabel>
-                <Switch checked={field.value} {...field} color="primary" />
-              </StyledBox>
-            )}
-          />
+              )}
+            />
+            <Controller
+              name="option.update_interval"
+              control={control}
+              render={({ field }) => {
+                const interval = Number(field.value)
+                const tooFrequent =
+                  Number.isFinite(interval) &&
+                  interval > 0 &&
+                  interval < MIN_UPDATE_INTERVAL
 
-          <Controller
-            name="option.self_proxy"
-            control={control}
-            render={({ field }) => (
-              <StyledBox>
-                <InputLabel>
-                  {t('profiles.modals.profileForm.fields.useClashProxy')}
-                </InputLabel>
-                <Switch checked={field.value} {...field} color="primary" />
-              </StyledBox>
-            )}
-          />
+                return (
+                  <TextField
+                    {...text}
+                    {...field}
+                    type="number"
+                    label={t(
+                      'profiles.modals.profileForm.fields.updateInterval',
+                    )}
+                    helperText={
+                      tooFrequent
+                        ? t(
+                            'profiles.modals.profileForm.warnings.frequentUpdate',
+                            { minutes: MIN_UPDATE_INTERVAL },
+                          )
+                        : undefined
+                    }
+                    slotProps={{
+                      formHelperText: { sx: { color: 'warning.main' } },
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            {t('shared.units.minutes')}
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  />
+                )
+              }}
+            />
+            <Controller
+              name="option.with_proxy"
+              control={control}
+              render={({ field }) => (
+                <StyledBox>
+                  <InputLabel>
+                    {t('profiles.modals.profileForm.fields.useSystemProxy')}
+                  </InputLabel>
+                  <Switch checked={field.value} {...field} color="primary" />
+                </StyledBox>
+              )}
+            />
 
-          <Controller
-            name="option.danger_accept_invalid_certs"
-            control={control}
-            render={({ field }) => (
-              <StyledBox>
-                <InputLabel>
-                  {t('profiles.modals.profileForm.fields.acceptInvalidCerts')}
-                </InputLabel>
-                <Switch checked={field.value} {...field} color="primary" />
-              </StyledBox>
-            )}
-          />
+            <Controller
+              name="option.self_proxy"
+              control={control}
+              render={({ field }) => (
+                <StyledBox>
+                  <InputLabel>
+                    {t('profiles.modals.profileForm.fields.useClashProxy')}
+                  </InputLabel>
+                  <Switch checked={field.value} {...field} color="primary" />
+                </StyledBox>
+              )}
+            />
 
-          <Controller
-            name="option.allow_auto_update"
-            control={control}
-            render={({ field }) => (
-              <StyledBox>
-                <InputLabel>
-                  {t('profiles.modals.profileForm.fields.allowAutoUpdate')}
-                </InputLabel>
-                <Switch
-                  checked={field.value ?? true}
-                  {...field}
-                  color="primary"
-                />
-              </StyledBox>
-            )}
-          />
+            <Controller
+              name="option.danger_accept_invalid_certs"
+              control={control}
+              render={({ field }) => (
+                <StyledBox>
+                  <InputLabel>
+                    {t('profiles.modals.profileForm.fields.acceptInvalidCerts')}
+                  </InputLabel>
+                  <Switch checked={field.value} {...field} color="primary" />
+                </StyledBox>
+              )}
+            />
+
+            <Controller
+              name="option.allow_auto_update"
+              control={control}
+              render={({ field }) => (
+                <StyledBox>
+                  <InputLabel>
+                    {t('profiles.modals.profileForm.fields.allowAutoUpdate')}
+                  </InputLabel>
+                  <Switch
+                    checked={field.value ?? true}
+                    {...field}
+                    color="primary"
+                  />
+                </StyledBox>
+              )}
+            />
+          </Collapse>
         </>
       )}
     </BaseDialog>

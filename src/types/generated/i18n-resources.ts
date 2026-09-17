@@ -361,7 +361,13 @@ export interface TranslationResources {
           title: string
         }
         profileForm: {
+          actions: {
+            hideAdvanced: string
+            paste: string
+            showAdvanced: string
+          }
           errors: {
+            fileRequired: string
             saveFailed: string
             typeRequired: string
             uidMissing: string
@@ -371,6 +377,7 @@ export interface TranslationResources {
             notifications: {
               creationRetry: string
               creationSuccess: string
+              profileAdded: string
             }
           }
           fields: {
@@ -386,8 +393,10 @@ export interface TranslationResources {
             useSystemProxy: string
           }
           title: {
+            addSubscription: string
             create: string
             edit: string
+            importLocal: string
           }
           types: {
             local: string
@@ -413,7 +422,9 @@ export interface TranslationResources {
       }
       page: {
         actions: {
+          addSubscription: string
           import: string
+          importLocal: string
           reactivate: string
           updateAll: string
           viewRuntimeConfig: string
