@@ -2,7 +2,6 @@ import { useCallback, useRef } from 'react'
 
 import { getProfiles, patchProfile, patchProfilesConfig } from '@/services/cmds'
 import {
-  fetchCacheData,
   revalidateQuery,
   setCacheData,
   useQuery,
@@ -12,9 +11,6 @@ import { debugLog } from '@/utils/debug'
 const profilesQueryKey = ['getProfiles'] as const
 
 export const revalidateProfiles = () => revalidateQuery(profilesQueryKey)
-
-export const fetchProfilesIntoCache = () =>
-  fetchCacheData(profilesQueryKey, getProfiles)
 
 export const useProfiles = () => {
   const {

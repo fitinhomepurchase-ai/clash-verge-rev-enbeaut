@@ -838,7 +838,7 @@ const ProfilePage = () => {
       <ProfileViewer
         ref={viewerRef}
         onChange={async (isActivating) => {
-          mutateProfiles()
+          await mutateProfiles()
           if (isActivating) {
             await onEnhance(false)
           }

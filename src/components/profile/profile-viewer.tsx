@@ -112,6 +112,7 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
 
   const handleOk = useLockFn(
     handleSubmit(async (form) => {
+      form = { ...form, url: form.url?.trim() }
       setLoading(true)
       try {
         if (!form.type) {
@@ -119,6 +120,18 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
         }
         if (form.type === 'remote' && !form.url) {
           throw new Error(t('profiles.modals.profileForm.errors.urlRequired'))
+        }
+        if (form.type === 'remote') {
+          let valid = false
+          try {
+            const parsed = new URL(form.url!)
+            valid =
+              ['http:', 'https:'].includes(parsed.protocol) && !!parsed.hostname
+          } catch {
+            valid = false
+          }
+          if (!valid)
+            throw new Error(t('profiles.page.feedback.errors.invalidUrl'))
         }
         if (
           form.type === 'local' &&
@@ -152,7 +165,9 @@ export function ProfileViewer({ onChange, ref }: ProfileViewerProps) {
         const isRemote = form.type === 'remote'
         const isUpdate = openType === 'edit'
 
-        const isActivating = isUpdate && form.uid === (profiles?.current ?? '')
+        const isActivating = isUpdate
+          ? form.uid === (profiles?.current ?? '')
+          : !profiles?.current
 
         // Preserve proxy settings when the remote retry succeeds through another route.
         const originalOptions = {

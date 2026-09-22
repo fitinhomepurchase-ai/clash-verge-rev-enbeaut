@@ -411,6 +411,12 @@ export const RulesEditorViewer = (props: Props) => {
 
   const handleVisualizationToggle = () => {
     if (visualization) {
+      setCurrData(
+        yaml.dump(
+          { prepend: prependSeq, append: appendSeq, delete: deleteSeq },
+          { forceQuotes: true },
+        ),
+      )
       setVisualization(false)
       return
     }
@@ -432,7 +438,7 @@ export const RulesEditorViewer = (props: Props) => {
 
   // 优化：异步处理大数据yaml.dump，避免UI卡死
   useEffect(() => {
-    if (!hasLoadedSeqConfigRef.current) {
+    if (!visualization || !hasLoadedSeqConfigRef.current) {
       return
     }
 
@@ -471,7 +477,7 @@ export const RulesEditorViewer = (props: Props) => {
         clearTimeout(timeoutId)
       }
     }
-  }, [prependSeq, appendSeq, deleteSeq])
+  }, [prependSeq, appendSeq, deleteSeq, visualization])
 
   const fetchProfile = useCallback(async () => {
     const data = await readProfileFile(profileUid) // 原配置文件
@@ -568,6 +574,18 @@ export const RulesEditorViewer = (props: Props) => {
     if (type.validator && !type.validator(ruleContent)) {
       throw new Error(t('rules.modals.editor.form.validation.invalidRule'))
     }
+    if (
+      !advancedRuleForm &&
+      (ruleContent.length > 253 ||
+        !ruleContent
+          .split('.')
+          .every((label) =>
+            /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label),
+          ) ||
+        /^\d+(\.\d+){3}$/.test(ruleContent))
+    ) {
+      throw new Error(t('rules.modals.editor.form.validation.invalidRule'))
+    }
 
     const condition = (type.required ?? true) ? ruleContent : ''
     return `${type.name}${condition ? ',' + condition : ''},${proxyPolicy}${
@@ -577,13 +595,20 @@ export const RulesEditorViewer = (props: Props) => {
 
   const handleSave = useLockFn(async () => {
     try {
-      if (!(await saveProfileFile(property, currData))) {
+      if (!hasLoadedSeqConfigRef.current && visualization) return
+      const data = visualization
+        ? yaml.dump(
+            { prepend: prependSeq, append: appendSeq, delete: deleteSeq },
+            { forceQuotes: true },
+          )
+        : currData
+      if (!(await saveProfileFile(property, data))) {
         await fetchContent()
         onClose()
         return
       }
       showNotice.success('shared.feedback.notifications.saved')
-      onSave?.(prevData, currData)
+      onSave?.(prevData, data)
       onClose()
     } catch (err: any) {
       showNotice.error(err)
@@ -724,7 +749,6 @@ export const RulesEditorViewer = (props: Props) => {
                     sx={{ minWidth: '240px' }}
                     value={ruleContent}
                     required
-                    error={!ruleContent}
                     placeholder="youtube.com"
                     onChange={(e) => setRuleContent(e.target.value.trim())}
                   />
@@ -815,6 +839,7 @@ export const RulesEditorViewer = (props: Props) => {
                     fullWidth
                     variant="contained"
                     startIcon={<VerticalAlignTopRounded />}
+                    disabled={!ruleContent.trim()}
                     onClick={() => {
                       try {
                         const raw = validateRule(DEFAULT_RULE_TYPE)
