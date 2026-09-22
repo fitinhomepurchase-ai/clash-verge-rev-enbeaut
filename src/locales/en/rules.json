@@ -27,14 +27,24 @@
         "labels": {
           "type": "Rule Type",
           "content": "Rule Content",
-          "proxyPolicy": "Proxy Policy"
+          "proxyPolicy": "Proxy Policy",
+          "domain": "Domain",
+          "routeTo": "Send through"
+        },
+        "hints": {
+          "domain": "Matches this domain and its subdomains"
         },
         "toggles": {
           "noResolve": "No Resolve"
         },
         "actions": {
           "prependRule": "Prepend Rule",
-          "appendRule": "Append Rule"
+          "appendRule": "Append Rule",
+          "addRoutingRule": "Add Routing Rule",
+          "moreRules": "More Rules",
+          "simpleRouting": "Simple Routing",
+          "editYaml": "Edit YAML",
+          "backToRouting": "Back to Routing"
         },
         "validation": {
           "conditionRequired": "Rule Condition Required",
@@ -76,7 +86,7 @@
         "NOT": "Logical NOT (NOT)",
         "MATCH": "Match all requests (MATCH)"
       },
-      "title": "Edit Rules"
+      "title": "Routing Rules"
     }
   }
 }

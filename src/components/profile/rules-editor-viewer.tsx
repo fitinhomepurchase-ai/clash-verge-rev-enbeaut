@@ -269,6 +269,7 @@ export const RulesEditorViewer = (props: Props) => {
   const [prevData, setPrevData] = useState('')
   const [currData, setCurrData] = useState('')
   const [visualization, setVisualization] = useState(true)
+  const [advancedRuleForm, setAdvancedRuleForm] = useState(false)
   const [match, setMatch] = useState(() => (_: string) => true)
 
   const [ruleType, setRuleType] =
@@ -276,7 +277,8 @@ export const RulesEditorViewer = (props: Props) => {
   const [ruleContent, setRuleContent] = useState('')
   const [noResolve, setNoResolve] = useState(false)
   const [proxyPolicy, setProxyPolicy] = useState(builtinProxyPolicies[0])
-  const [proxyPolicyList, setProxyPolicyList] = useState<string[]>([])
+  const [proxyPolicyList, setProxyPolicyList] =
+    useState<string[]>(builtinProxyPolicies)
   const [ruleList, setRuleList] = useState<string[]>([])
   const [ruleSetList, setRuleSetList] = useState<string[]>([])
   const [subRuleList, setSubRuleList] = useState<string[]>([])
@@ -388,6 +390,7 @@ export const RulesEditorViewer = (props: Props) => {
   }
 
   const fetchContent = useCallback(async () => {
+    setAdvancedRuleForm(false)
     hasLoadedSeqConfigRef.current = false
     const data = await readProfileFile(property)
     const obj = parseYamlSafe(data) as ISeqProfileConfig | null | undefined
@@ -556,19 +559,19 @@ export const RulesEditorViewer = (props: Props) => {
     }
   }, [])
 
-  const validateRule = () => {
-    if ((ruleType.required ?? true) && !ruleContent) {
+  const validateRule = (type = ruleType) => {
+    if ((type.required ?? true) && !ruleContent) {
       throw new Error(
         t('rules.modals.editor.form.validation.conditionRequired'),
       )
     }
-    if (ruleType.validator && !ruleType.validator(ruleContent)) {
+    if (type.validator && !type.validator(ruleContent)) {
       throw new Error(t('rules.modals.editor.form.validation.invalidRule'))
     }
 
-    const condition = (ruleType.required ?? true) ? ruleContent : ''
-    return `${ruleType.name}${condition ? ',' + condition : ''},${proxyPolicy}${
-      ruleType.noResolve && noResolve ? ',no-resolve' : ''
+    const condition = (type.required ?? true) ? ruleContent : ''
+    return `${type.name}${condition ? ',' + condition : ''},${proxyPolicy}${
+      type.noResolve && noResolve ? ',no-resolve' : ''
     }`
   }
 
@@ -600,14 +603,26 @@ export const RulesEditorViewer = (props: Props) => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             {t('rules.modals.editor.title')}
             <Box>
+              {visualization && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setAdvancedRuleForm((value) => !value)}
+                  sx={{ mr: 1 }}
+                >
+                  {advancedRuleForm
+                    ? t('rules.modals.editor.form.actions.simpleRouting')
+                    : t('rules.modals.editor.form.actions.moreRules')}
+                </Button>
+              )}
               <Button
                 variant="contained"
                 size="small"
                 onClick={handleVisualizationToggle}
               >
                 {visualization
-                  ? t('shared.editorModes.advanced')
-                  : t('shared.editorModes.visualization')}
+                  ? t('rules.modals.editor.form.actions.editYaml')
+                  : t('rules.modals.editor.form.actions.backToRouting')}
               </Button>
             </Box>
           </Box>
@@ -625,77 +640,103 @@ export const RulesEditorViewer = (props: Props) => {
                 padding: '0 10px',
               }}
             >
-              <Item>
-                <ListItemText
-                  primary={t('rules.modals.editor.form.labels.type')}
-                />
-                <Autocomplete
-                  size="small"
-                  sx={{ minWidth: '240px' }}
-                  renderInput={(params) => <TextField {...params} />}
-                  options={rules}
-                  value={ruleType}
-                  getOptionLabel={(option) =>
-                    t(RULE_TYPE_LABEL_KEYS[option.name] ?? option.name)
-                  }
-                  renderOption={(props, option) => {
-                    const { key, ...optionProps } = props
-                    const label = t(
-                      RULE_TYPE_LABEL_KEYS[option.name] ?? option.name,
-                    )
-                    return (
-                      <li key={key} {...optionProps} title={label}>
-                        {label}
-                      </li>
-                    )
-                  }}
-                  onChange={(_, value) => value && setRuleType(value)}
-                />
-              </Item>
-              <Item
-                sx={{ display: !(ruleType.required ?? true) ? 'none' : '' }}
-              >
-                <ListItemText
-                  primary={t('rules.modals.editor.form.labels.content')}
-                />
-
-                {ruleType.name === 'RULE-SET' && (
-                  <Autocomplete
-                    size="small"
-                    sx={{ minWidth: '240px' }}
-                    renderInput={(params) => <TextField {...params} />}
-                    options={ruleSetList}
-                    value={ruleContent}
-                    onChange={(_, value) => value && setRuleContent(value)}
-                  />
-                )}
-                {ruleType.name === 'SUB-RULE' && (
-                  <Autocomplete
-                    size="small"
-                    sx={{ minWidth: '240px' }}
-                    renderInput={(params) => <TextField {...params} />}
-                    options={subRuleList}
-                    value={ruleContent}
-                    onChange={(_, value) => value && setRuleContent(value)}
-                  />
-                )}
-                {ruleType.name !== 'RULE-SET' &&
-                  ruleType.name !== 'SUB-RULE' && (
-                    <TextField
-                      autoComplete="new-password"
+              {advancedRuleForm ? (
+                <>
+                  <Item>
+                    <ListItemText
+                      primary={t('rules.modals.editor.form.labels.type')}
+                    />
+                    <Autocomplete
                       size="small"
                       sx={{ minWidth: '240px' }}
-                      value={ruleContent}
-                      required={ruleType.required ?? true}
-                      error={(ruleType.required ?? true) && !ruleContent}
-                      placeholder={ruleType.example}
-                      onChange={(e) => setRuleContent(e.target.value)}
+                      renderInput={(params) => <TextField {...params} />}
+                      options={rules}
+                      value={ruleType}
+                      getOptionLabel={(option) =>
+                        t(RULE_TYPE_LABEL_KEYS[option.name] ?? option.name)
+                      }
+                      renderOption={(props, option) => {
+                        const { key, ...optionProps } = props
+                        const label = t(
+                          RULE_TYPE_LABEL_KEYS[option.name] ?? option.name,
+                        )
+                        return (
+                          <li key={key} {...optionProps} title={label}>
+                            {label}
+                          </li>
+                        )
+                      }}
+                      onChange={(_, value) => value && setRuleType(value)}
                     />
-                  )}
-              </Item>
+                  </Item>
+                  <Item
+                    sx={{ display: !(ruleType.required ?? true) ? 'none' : '' }}
+                  >
+                    <ListItemText
+                      primary={t('rules.modals.editor.form.labels.content')}
+                    />
+
+                    {ruleType.name === 'RULE-SET' && (
+                      <Autocomplete
+                        size="small"
+                        sx={{ minWidth: '240px' }}
+                        renderInput={(params) => <TextField {...params} />}
+                        options={ruleSetList}
+                        value={ruleContent}
+                        onChange={(_, value) => value && setRuleContent(value)}
+                      />
+                    )}
+                    {ruleType.name === 'SUB-RULE' && (
+                      <Autocomplete
+                        size="small"
+                        sx={{ minWidth: '240px' }}
+                        renderInput={(params) => <TextField {...params} />}
+                        options={subRuleList}
+                        value={ruleContent}
+                        onChange={(_, value) => value && setRuleContent(value)}
+                      />
+                    )}
+                    {ruleType.name !== 'RULE-SET' &&
+                      ruleType.name !== 'SUB-RULE' && (
+                        <TextField
+                          autoComplete="new-password"
+                          size="small"
+                          sx={{ minWidth: '240px' }}
+                          value={ruleContent}
+                          required={ruleType.required ?? true}
+                          error={(ruleType.required ?? true) && !ruleContent}
+                          placeholder={ruleType.example}
+                          onChange={(e) => setRuleContent(e.target.value)}
+                        />
+                      )}
+                  </Item>
+                </>
+              ) : (
+                <Item>
+                  <ListItemText
+                    primary={t('rules.modals.editor.form.labels.domain')}
+                    secondary={t('rules.modals.editor.form.hints.domain')}
+                  />
+                  <TextField
+                    autoFocus
+                    autoComplete="new-password"
+                    size="small"
+                    sx={{ minWidth: '240px' }}
+                    value={ruleContent}
+                    required
+                    error={!ruleContent}
+                    placeholder="youtube.com"
+                    onChange={(e) => setRuleContent(e.target.value.trim())}
+                  />
+                </Item>
+              )}
               <Item>
                 <ListItemText
-                  primary={t('rules.modals.editor.form.labels.proxyPolicy')}
+                  primary={
+                    advancedRuleForm
+                      ? t('rules.modals.editor.form.labels.proxyPolicy')
+                      : t('rules.modals.editor.form.labels.routeTo')
+                  }
                 />
                 <Autocomplete
                   size="small"
@@ -718,7 +759,7 @@ export const RulesEditorViewer = (props: Props) => {
                   onChange={(_, value) => value && setProxyPolicy(value)}
                 />
               </Item>
-              {ruleType.noResolve && (
+              {advancedRuleForm && ruleType.noResolve && (
                 <Item>
                   <ListItemText
                     primary={t('rules.modals.editor.form.toggles.noResolve')}
@@ -729,42 +770,65 @@ export const RulesEditorViewer = (props: Props) => {
                   />
                 </Item>
               )}
-              <Item>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<VerticalAlignTopRounded />}
-                  onClick={() => {
-                    try {
-                      const raw = validateRule()
-                      if (prependSeq.includes(raw)) return
-                      setPrependSeq([raw, ...prependSeq])
-                    } catch (err: any) {
-                      showNotice.error(err)
-                    }
-                  }}
-                >
-                  {t('rules.modals.editor.form.actions.prependRule')}
-                </Button>
-              </Item>
-              <Item>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<VerticalAlignBottomRounded />}
-                  onClick={() => {
-                    try {
-                      const raw = validateRule()
-                      if (appendSeq.includes(raw)) return
-                      setAppendSeq([...appendSeq, raw])
-                    } catch (err: any) {
-                      showNotice.error(err)
-                    }
-                  }}
-                >
-                  {t('rules.modals.editor.form.actions.appendRule')}
-                </Button>
-              </Item>
+              {advancedRuleForm ? (
+                <>
+                  <Item>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      startIcon={<VerticalAlignTopRounded />}
+                      onClick={() => {
+                        try {
+                          const raw = validateRule()
+                          if (prependSeq.includes(raw)) return
+                          setPrependSeq([raw, ...prependSeq])
+                        } catch (err: any) {
+                          showNotice.error(err)
+                        }
+                      }}
+                    >
+                      {t('rules.modals.editor.form.actions.prependRule')}
+                    </Button>
+                  </Item>
+                  <Item>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      startIcon={<VerticalAlignBottomRounded />}
+                      onClick={() => {
+                        try {
+                          const raw = validateRule()
+                          if (appendSeq.includes(raw)) return
+                          setAppendSeq([...appendSeq, raw])
+                        } catch (err: any) {
+                          showNotice.error(err)
+                        }
+                      }}
+                    >
+                      {t('rules.modals.editor.form.actions.appendRule')}
+                    </Button>
+                  </Item>
+                </>
+              ) : (
+                <Item>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    startIcon={<VerticalAlignTopRounded />}
+                    onClick={() => {
+                      try {
+                        const raw = validateRule(DEFAULT_RULE_TYPE)
+                        if (prependSeq.includes(raw)) return
+                        setPrependSeq([raw, ...prependSeq])
+                      } catch (err: any) {
+                        showNotice.error(err)
+                      }
+                    }}
+                  >
+                    {t('rules.modals.editor.form.actions.addRoutingRule')}
+                  </Button>
+                </Item>
+              )}
             </List>
 
             <List

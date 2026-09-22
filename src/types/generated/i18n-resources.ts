@@ -618,12 +618,22 @@ export interface TranslationResources {
         editor: {
           form: {
             actions: {
+              addRoutingRule: string
               appendRule: string
+              backToRouting: string
+              editYaml: string
+              moreRules: string
               prependRule: string
+              simpleRouting: string
+            }
+            hints: {
+              domain: string
             }
             labels: {
               content: string
+              domain: string
               proxyPolicy: string
+              routeTo: string
               type: string
             }
             toggles: {
