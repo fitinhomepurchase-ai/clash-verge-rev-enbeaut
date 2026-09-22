@@ -19,14 +19,7 @@ import {
 } from '@mui/material'
 import { useLockFn } from 'ahooks'
 import * as yaml from 'js-yaml'
-import {
-  startTransition,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { BaseSearchBox, MonacoEditor, Switch } from '@/components/base'
@@ -236,6 +229,23 @@ const RULE_TYPE_LABEL_KEYS: Record<string, string> = Object.fromEntries(
 const DEFAULT_RULE_TYPE =
   rules.find((rule) => rule.name === 'DOMAIN-SUFFIX') ?? rules[0]
 
+const parseRuleSequences = (data: string): ISeqProfileConfig | undefined => {
+  const value = parseYamlSafe(data)
+  if (value === null) return { prepend: [], append: [], delete: [] }
+  if (typeof value !== 'object' || Array.isArray(value)) return undefined
+  if (!value) return undefined
+  for (const [key, items] of Object.entries(value)) {
+    if (!['prepend', 'append', 'delete'].includes(key)) return undefined
+    if (
+      !Array.isArray(items) ||
+      items.some((item) => typeof item !== 'string')
+    ) {
+      return undefined
+    }
+  }
+  return value as ISeqProfileConfig
+}
+
 const builtinProxyPolicies = ['DIRECT', 'REJECT', 'REJECT-DROP', 'PASS']
 
 const PROXY_POLICY_LABEL_KEYS: Record<string, TranslationKey> =
@@ -393,7 +403,7 @@ export const RulesEditorViewer = (props: Props) => {
     setAdvancedRuleForm(false)
     hasLoadedSeqConfigRef.current = false
     const data = await readProfileFile(property)
-    const obj = parseYamlSafe(data) as ISeqProfileConfig | null | undefined
+    const obj = parseRuleSequences(data)
 
     setPrevData(data)
     setCurrData(data)
@@ -421,63 +431,19 @@ export const RulesEditorViewer = (props: Props) => {
       return
     }
 
-    const obj = parseYamlSafe(currData) as ISeqProfileConfig | null | undefined
+    const obj = parseRuleSequences(currData)
     if (obj === undefined) {
       hasLoadedSeqConfigRef.current = false
+      showNotice.error('rules.modals.editor.form.validation.invalidRule')
       return
     }
 
     hasLoadedSeqConfigRef.current = true
-    startTransition(() => {
-      setPrependSeq(obj?.prepend ?? [])
-      setAppendSeq(obj?.append ?? [])
-      setDeleteSeq(obj?.delete ?? [])
-    })
+    setPrependSeq(obj.prepend ?? [])
+    setAppendSeq(obj.append ?? [])
+    setDeleteSeq(obj.delete ?? [])
     setVisualization(true)
   }
-
-  // 优化：异步处理大数据yaml.dump，避免UI卡死
-  useEffect(() => {
-    if (!visualization || !hasLoadedSeqConfigRef.current) {
-      return
-    }
-
-    if (!(prependSeq && appendSeq && deleteSeq)) {
-      return
-    }
-
-    const serialize = () => {
-      if (!hasLoadedSeqConfigRef.current) {
-        return
-      }
-
-      try {
-        setCurrData(
-          yaml.dump(
-            { prepend: prependSeq, append: appendSeq, delete: deleteSeq },
-            { forceQuotes: true },
-          ),
-        )
-      } catch (error) {
-        showNotice.error(error ?? 'YAML dump error')
-      }
-    }
-    let idleId: number | undefined
-    let timeoutId: number | undefined
-    if (window.requestIdleCallback) {
-      idleId = window.requestIdleCallback(serialize)
-    } else {
-      timeoutId = window.setTimeout(serialize, 0)
-    }
-    return () => {
-      if (idleId !== undefined && window.cancelIdleCallback) {
-        window.cancelIdleCallback(idleId)
-      }
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId)
-      }
-    }
-  }, [prependSeq, appendSeq, deleteSeq, visualization])
 
   const fetchProfile = useCallback(async () => {
     const data = await readProfileFile(profileUid) // 原配置文件
